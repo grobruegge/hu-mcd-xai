@@ -8,7 +8,7 @@ from matplotlib import pyplot as plt
 from matplotlib import gridspec as gridspec
 from run_humcd import check_folder
 from utils import utils_general, utils_mcd
-
+                
 def prepare_imgs_for_mcd(images:list[classes.ImageClass]):
     # iterate over all images
     for img in images:
@@ -302,7 +302,7 @@ def parse_arguments(argv):
         '--val_dir', 
         type=str,
         help='directory where the test class images are saved (in folders named after the class)', 
-        default='imagenet_val_imgs'
+        default='val_imgs'
     )
     parser.add_argument(
         '--save_dir', 

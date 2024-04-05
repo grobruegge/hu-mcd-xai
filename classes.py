@@ -399,17 +399,6 @@ class ClusterSpaceClass():
         centroids, labels, _ = k_means(
             embedding, n_clusters, random_state=43, n_init='auto'
         )
-        
-        if max_samples != None:
-            # Retain only the top n_points closest to every cluster centroid
-            closest_points_indices = []
-            for i in range(n_clusters):
-                cluster_points_indices = np.where(labels == i)[0]
-                distances_to_centroid = pairwise_distances_argmin_min(embedding[cluster_points_indices], [centroids[i]])[1]
-                closest_points_indices.extend(cluster_points_indices[np.argsort(distances_to_centroid)[:max_samples]])
-        
-            labels = np.full(embedding.shape[0], -1)
-            labels[closest_points_indices] = labels[closest_points_indices]
         return labels
     
     def sparse_subspace_clustering(self, filepath, outlier_percentile:float, n_clusters:int, max_samples:int):

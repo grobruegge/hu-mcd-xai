@@ -252,7 +252,7 @@ def get_outlier_mask(sparse_repr_matrix, percentile):
 def batch_concept_activations(batch_acts, featurespace_bases, norm_batch):
     if norm_batch:
         batch_acts = batch_acts / norm(batch_acts, axis=1).max()
-    batch_similarities = np.empty(batch_acts.shape[0], len(featurespace_bases))
+    batch_similarities = np.empty(shape=(batch_acts.shape[0], len(featurespace_bases)))
     for idx, act in enumerate(batch_acts):
         batch_similarities[idx] = norm(subspace_projection(subspace_bases=featurespace_bases, vector=act), axis=1)
         if not norm_batch:

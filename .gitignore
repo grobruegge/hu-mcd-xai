@@ -3,6 +3,7 @@
 *workingDir*/
 *.zip
 *.ipynb
+*.pth
 
 # VSCode
 *.vscode

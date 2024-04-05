@@ -131,10 +131,10 @@ def main(args):
         resp = requests.get(f'http://www.image-net.org/api/imagenet.synset.geturls?wnid={class_wnid}')
         img_urls = [url.decode('utf-8') for url in resp.content.splitlines()]
         # variable to make sure only args.images_per_class images are downloaded for each class
-        # not that when using multiprocessing, the actual number of images downloaded is likely a bit
+        # note that when using multiprocessing, the actual number of images downloaded is likely a bit
         # higher than this value, because some processes will still finish even though this value is exceeded
-        # with class_img_counter.get_lock():
-        #     class_img_counter.value = 0
+        with class_img_counter.get_lock():
+            class_img_counter.value = 0
         
         # if args.class_list is given, create one folder (named after the class) for each class
         if args.class_list is not None:
@@ -164,7 +164,7 @@ def parse_arguments(argv):
         '--save_dir',
         type=str,
         help='base directory where the image are saved (in corresponding folders)', 
-        default='./imagenet_images'
+        default='./sourceDir'
     )
     parser.add_argument(
         '--imagenet1k_class_info_dict',

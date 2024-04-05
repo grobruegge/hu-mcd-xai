@@ -163,7 +163,7 @@ def parse_arguments(argv):
         '--model_name', 
         type=str,
         help='name of pytorch model to be explained', 
-        default='resnet18'
+        default='resnet50'
     )
     parser.add_argument(
         '--layer_name', 

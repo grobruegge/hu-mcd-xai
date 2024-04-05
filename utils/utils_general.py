@@ -203,4 +203,6 @@ def get_imagenet_class_index(class_name:str, labelpath:str='imagenet1k_class_inf
     with open(labelpath, 'r') as json_file:
       imagenet1k_class_info = json.load(json_file)
     class_idx = imagenet1k_class_info[class_name.replace(' ', '_')]['class_index']
+    if class_idx in [134, 517, 638, 639]:
+        print("[WARNING] The labels crane and maillot are duplicates; you might need to fix this manually.")
     return class_idx

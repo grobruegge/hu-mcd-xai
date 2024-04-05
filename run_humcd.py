@@ -171,7 +171,7 @@ def main(args:argparse.Namespace):
             masking_mode=-1, # reveal the direct sourrounding of the segment
             erosion_threshold=0.25, # apply erosion on large masks to prevent class leakage
             batch_size=args.batch_size,
-            norm_acts=True, # normalize activations
+            norm_acts=False, # normalize activations
         )
         # create concepts by clustering segmentation activations
         explainer.create_concepts(
@@ -180,7 +180,7 @@ def main(args:argparse.Namespace):
             norm_acts=True, # use the normalized activations for clustering
             min_size=50, # only consider clusters with at least 50 members as concepts 
             min_coverage=0.0, # not used
-            max_samples=200, # filter outlier by only using the top 200 examples per cluster,
+            max_samples=None, # filter outlier by only using the top 200 examples per cluster,
             outlier_percentile=1.0, # percentage of outliers filterd for sparse SC
             folderpath=args.cache_dir_self_repr_matrices,
         )

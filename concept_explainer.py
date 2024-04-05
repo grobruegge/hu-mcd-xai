@@ -200,7 +200,7 @@ class ConceptExplainer():
     
     def create_concepts(self, cluster_algo:str='kmeans', n_clusters:int=None, norm_acts:bool=True,
                         min_size:int=0, min_coverage:float=0.0, max_samples:int=None, 
-                        outlier_percentile:float=1.0, folderpath:str='sparse_repr_matrices'):
+                        outlier_percentile:float=1.0, folderpath:str='self_repr_matrices'):
         self.clustering = classes.ClusterSpaceClass(
             images = self.class_imgs,
             norm_acts=norm_acts
@@ -339,7 +339,7 @@ class ConceptExplainer():
         
         return concept_projs@weight_vec
     
-    def compute_tcav_scores(self, rdm_imgs_folder:str='random', mimic_segm:bool=True, segm_cache_dir:str='rdm_segms', 
+    def compute_tcav_scores(self, rdm_imgs_folder:str='random', mimic_segm:bool=False, segm_cache_dir:str='rdm_segms', 
                                     num_rdm_runs:int=20, acts_cache_dir:str='acts', training_mode:str='sklearn',
                                     num_epochs:int=50, num_test_images:int=100):
         # load random images 

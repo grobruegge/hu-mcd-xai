@@ -1,8 +1,8 @@
-# Disentangling and Quantifying Automatic Concept-based Explanations Using Residual Analysis
+# Towards Human-Understandable Multi-Dimensional Concept Discovery (HU-MCD)
 
 This is the PyTorch implementation of my master thesis "Towards Human-Understandable Multi-Dimensional Concept Discovery (HU-MCD)". HU-MCD is an extension of [Multi-dimensional concept discovery (MCD): A unifying framework with completeness guarantees](https://arxiv.org/pdf/2301.11911.pdf) and automatically extracts human-understandable concepts from pre-trained Convolutional Neural Networks (CNNs). Using these concepts, HU-MCD enables to explain the predictions of CNNs both locally and globally and includes a completeness relation that quantifies to what extend the concepts are sufficient in explaining the CNNs decision.   
 
-The following illustration showcases an example explanations given an image for which the a ResNet50 model pretrained on ImageNet predicts the class `airliner`. Locally, each region within the image can be associated with a concept (concept mask) and concept can be attributed a local relevance score, highlighting its contribution to the final model prediction. Additionally, locally discovered concept can be associated with global concept candidates to further enhance interpretability. 
+The following illustration showcases an example explanations given an image for which the a ResNet50 model pretrained on ImageNet predicts the class `airliner`. Locally, each region within the image can be associated with a concept which can be attributed a local relevance score, highlighting its contribution to the final model prediction. Additionally, locally discovered concept can be associated with global concept candidates to further enhance interpretability. 
 
 ![Example illustration showcasing the local and global concept assignments for an image which the model classified as airliner.](images/local_example_airliner.png)
 
@@ -10,6 +10,7 @@ The following illustration showcases an example explanations given an image for 
 
 ### Install Requirements
 
+#### General Requirements
 Create a new python environent (here shown with `virtualenv` but you might also use for example `anaconda`)
 
 ```shell
@@ -21,12 +22,17 @@ $ source <env_name>/bin/activate
 $ pip install -r requirements.txt
 ```
 
+#### PyTorch
+
 Note that you should **install PyTorch sperately** depending on whether you have a GPU available or not (see for https://pytorch.org/get-started/locally/). At the time of developing this framework the command would look as follows (for GPU installation)
 
 ```sh
 # install PyTorch with GPU support
 $ pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
 ```
+
+#### Segment Anything
+Additionally, you are required to **install the Segment Anything** libary using their [GitHub repository](https://github.com/facebookresearch/segment-anything?tab=readme-ov-file#model-checkpoints). There, you can also download the [model checkpoint](https://dl.fbaipublicfiles.com/segment_anything/sam_vit_h_4b8939.pth) for the *ViT-H SAM Model* and place it within the main folder of the repository.
 
 ### Downloading images
 

@@ -3,14 +3,13 @@ import numpy as np
 import classes
 from concept_explainer import ConceptExplainer
 from utils import utils_general, utils_mcd
+from run_mcd import prepare_imgs_for_mcd
 from matplotlib import pyplot as plt
 import pickle
 from skimage.transform import resize
 from sklearn.preprocessing import normalize
 import random
  
-# python test_concept_faithfulness.py --cls_list airliner beach_wagon zebra container_ship police_van hummingbird Siamese_cat ox golden_retriever tailed_frog --n_val_imgs_per_cls 50 --settings_to_compare ace mcd mine --mode sdc --model_name resnet50 --batch_size 128
-
 def iter_mask_imgs_humcd(expl_obj:ConceptExplainer, val_imgs:list[classes.ImageClass],
                             mode:str) -> list[classes.ImageClass]:
     n_concepts = len(expl_obj.concept_bases)
@@ -180,29 +179,6 @@ def iter_mask_imgs_ace(expl_obj:ConceptExplainer, val_imgs:list[classes.ImageCla
         val_imgs_masked.append(v_img_masked)
     
     return val_imgs_masked
-
-def prepare_imgs_for_mcd(images:list[classes.ImageClass]):
-    for img in images:
-        if len(img.segments) > 1:
-            raise ValueError("Should only be one segment")
-        img_act = img.segments[0].model_act
-        n_channels = img_act.shape[0]
-        w,h, = img_act.shape[1:]
-        if len(img_act.shape) != 3:
-            raise ValueError("Expected feature map of following shape (n_channels, height, width)")
-        pixel_acts = img_act.transpose(1,2,0).reshape(-1, n_channels)
-        pixel_acts = normalize(pixel_acts, norm='l2', axis=1)
-        img.segments = []
-        for p_idx, p_act in enumerate(pixel_acts):
-            if not np.all(p_act == 0):
-                position_mask = np.zeros((w, h))
-                position_mask[p_idx // w, p_idx % h] = 1
-                pixel_segm = classes.SegmentClass(
-                    mask=position_mask, # mask showing the position in the feature map
-                    original_image=img
-                )
-                pixel_segm.model_act = p_act
-                img.segments.append(pixel_segm)
             
 def iter_mask_imgs_mcd(expl_obj:ConceptExplainer, val_imgs:list[classes.ImageClass], 
                        mode:str) -> list[classes.ImageClass]:
@@ -288,7 +264,7 @@ def iter_mask_imgs_mcd(expl_obj:ConceptExplainer, val_imgs:list[classes.ImageCla
         
     return val_imgs_masked
 
-def iter_mask_imgs_random(val_imgs:list[classes.ImageClass], mode:str, 
+def iter_mask_imgs_rdm(val_imgs:list[classes.ImageClass], mode:str, 
                           grid_size:tuple=(10, 10)) -> list[classes.ImageClass]:
     val_imgs_masked:list[classes.ImageClass] = []
     
@@ -309,7 +285,7 @@ def iter_mask_imgs_random(val_imgs:list[classes.ImageClass], mode:str,
                 left = j * cell_width
                 right = min((j + 1) * cell_width, img_w)
                 # Create mask for current cell
-                g_mask = np.zeros_like(v_img.img_numpy)
+                g_mask = np.zeros(shape=(img_h, img_w))
                 g_mask[top:bottom, left:right] = 1
                 # Append mask to list
                 grid_masks.append(g_mask)
@@ -349,7 +325,7 @@ def iter_mask_imgs_random(val_imgs:list[classes.ImageClass], mode:str,
         
     return val_imgs_masked
              
-def compute_sdc_scores(expl_obj:ConceptExplainer, num_test_imgs:int, 
+def run_benchmark(expl_obj:ConceptExplainer, num_test_imgs:int, 
                        val_dir:str, setting:str, mode:str):
     val_imgs = expl_obj._load_images(
         folderpath=os.path.join(
@@ -359,14 +335,14 @@ def compute_sdc_scores(expl_obj:ConceptExplainer, num_test_imgs:int,
         max_shortest_side=expl_obj.max_shortest_side,
         shuffle=False
     )
-    if setting != 'mcd':
+    if setting in ['humcd', 'ace']:
         expl_obj._segment_images(
             images=val_imgs,
             segm_algo=expl_obj.segm_algo,
             cache_dir='segms_val'
         )
     # little trick to get the activation of the whole image
-    else:
+    elif setting == 'mcd':
         for v_img in val_imgs:
             v_img.segments = [
                 classes.SegmentClass(
@@ -394,8 +370,8 @@ def compute_sdc_scores(expl_obj:ConceptExplainer, num_test_imgs:int,
         val_imgs_masked = iter_mask_imgs_ace(expl_obj, val_imgs, mode)
     elif setting == 'mcd':
         val_imgs_masked = iter_mask_imgs_mcd(expl_obj, val_imgs, mode)
-    elif setting == 'random':
-        val_imgs_masked = iter_mask_imgs_random(val_imgs, mode)
+    elif setting == 'rdm':
+        val_imgs_masked = iter_mask_imgs_rdm(val_imgs, mode)
     
     expl_obj._load_or_calc_acts(
         cache_dir=None,
@@ -446,12 +422,12 @@ def calc_avg_and_std(lists:list[list], sample_size:int) -> tuple[np.ndarray,np.n
 
     return averages, std_devs
 
-def plot_results(setting_data:list, mode:str, show_std:bool=True):
-    
-    plt.figure(figsize=(10, 7.5))
+def plot_results(setting_data:list, mode:str, show_std:bool=False):
+    plt.rcParams['text.usetex'] = True
+    fig, ax = plt.subplots(figsize=(7,10), tight_layout=True)
     
     # Define a list of colors to cycle through
-    colors = ['blue', 'green', 'red']
+    colors = ['blue', 'green', 'red', 'black']
     for i, (
         setting_name, 
         setting_avg_corr_preds, 
@@ -463,42 +439,42 @@ def plot_results(setting_data:list, mode:str, show_std:bool=True):
 
         if mode in ['sdc', 'ssc']:
             x_data = 1 - (0.01 * setting_avg_pixel_perc)
-            x_label = 'percentage of deleted pixels'
+            x_label = r'percentage of deleted pixels'
         elif mode in ['sdc_single', 'ssc_single']:
             x_data = np.arange(len(setting_avg_pixel_perc))
-            x_label = 'concepts in descending order of importance'
+            x_label = r'concepts in descending order of importance'
             
         # Plot the main line for average correct predictions
-        plt.plot(x_data, setting_avg_corr_preds, label=setting_name, color=color, marker='o')
+        ax.plot(x_data, setting_avg_corr_preds, label=setting_name, color=color, marker='o')
 
         if mode in ['sdc', 'ssc'] and show_std:
             # Add a shade for the standard deviation of accuracy
-            plt.fill_between(x_data, 
+            ax.fill_between(x_data, 
                             np.clip(np.subtract(setting_avg_corr_preds, setting_std_corr_preds), 0, 1), 
                             np.clip(np.add(setting_avg_corr_preds, setting_std_corr_preds), 0, 1), 
                             color=color, alpha=0.1)
 
             # Use errorbar to add horizontal lines with caps for the standard deviation of pixel deletion percentage
             for x, y, std in zip(x_data, setting_avg_corr_preds, setting_std_pixel_perc * 0.01):
-                plt.errorbar(x, y, xerr=std, fmt='o', color='black', ecolor='black', capsize=5, elinewidth=2, markeredgewidth=2)
+                ax.errorbar(x, y, xerr=std, fmt='o', color='black', ecolor='black', capsize=5, elinewidth=2, markeredgewidth=2)
 
-    plt.xlabel(x_label)
-    plt.ylabel('average prediction accuracy')
-    plt.title('Effect of Concept Flipping on Prediction Accuracy')
-    plt.legend()
+    ax.set_xlabel(x_label)
+    ax.set_ylabel(r'average prediction accuracy')
+    # ax.set_title('Effect of Concept Flipping on Prediction Accuracy', fontsize=16)
+    ax.legend()
 
     # Set limits with a small padding
-    plt.ylim(-0.05, 1.05)
-    if mode in ['sdc', 'ssc']:
-        plt.xlim(-0.05, 1.05)
+    ax.set_ylim(-0.05, 0.85)
+    if mode == 'sdc':
+        ax.set_xlim(-0.05, 0.85)
+    elif mode == 'ssc':
+        ax.set_xlim(0.15, 1.05)
     
-    plt.grid(True)
+    ax.grid(True)
     if mode == 'ssc':
-        plt.gca().invert_xaxis() 
+        ax.invert_xaxis() 
 
-    # Save the figure to a file
-    plt.savefig(f'{mode}.png', format='png', dpi=300, bbox_inches='tight')
-    plt.close()
+    fig.savefig(f'{mode}.pdf', format='pdf')
     
 def get_setting_params(setting_name:str):
     if setting_name == 'ace':
@@ -510,7 +486,7 @@ def get_setting_params(setting_name:str):
             'cropping_mode': 1,
             'use_masks': False,
             'masking_mode': None,
-            'erosion_threshold': 0.25,
+            'erosion_threshold': 1.0,
             'cluster_algo': 'kmeans',
             'norm_clustering':False,
             'num_clusters': 25,
@@ -527,7 +503,7 @@ def get_setting_params(setting_name:str):
             'cropping_mode': 0,
             'use_masks': True,
             'masking_mode': -1,
-            'erosion_threshold': 1.0,
+            'erosion_threshold': 0.25,
             'norm_clustering':True,
             'cluster_algo': 'sparse_subspace_clustering',
             'num_clusters': None,
@@ -564,8 +540,8 @@ def get_setting_params(setting_name:str):
         raise ValueError("Setting not recognized")
 
 def main(args):
-    if not os.path.exists(args.save_dir):
-        os.makedirs(args.save_dir)
+    if not os.path.exists(args.cache_dir):
+        os.makedirs(args.cache_dir)
 
     setting_data = []
     
@@ -579,7 +555,7 @@ def main(args):
         for cls_name in args.cls_list:
             print(f"[INFO] Computing {args.mode} for class {cls_name}")
             filepath = os.path.join(
-                args.save_dir,
+                args.cache_dir,
                 utils_general.create_filename(
                     args.mode, cls_name, args.n_val_imgs_per_cls, args.model_name, 
                     setting_params['layer_name'], setting_name, extension='.pkl'
@@ -633,6 +609,7 @@ def main(args):
                     expl_obj.create_concepts(
                         cluster_algo=setting_params['cluster_algo'],
                         n_clusters=n_clusters,
+                        norm_acts=setting_params['norm_clustering'],
                         min_size=setting_params['min_cluster_size'],
                         min_coverage=setting_params['min_coverage_ratio'],
                         max_samples=setting_params['max_samples_per_cluster'],
@@ -650,7 +627,7 @@ def main(args):
                     print(f"[INFO] Class {cls_name} with {n_clusters} clusters, Completeness: {completeness:.2f}")
                     if completeness > setting_params['completeness_threshold']:
                         break
-            elif setting_name != 'rdm':            
+            elif setting_name in ['humcd', 'ace']:            
                 expl_obj.create_concepts(
                     cluster_algo=setting_params['cluster_algo'],
                     n_clusters=setting_params['num_clusters'], 
@@ -680,8 +657,8 @@ def main(args):
                     num_test_images = 50
                 )
         
-            cls_corr_pred, cls_pixel_perc = compute_sdc_scores(
-                expl_obj, args.n_val_imgs_per_cls, 'imagenet_val_imgs', setting_name, args.mode
+            cls_corr_pred, cls_pixel_perc = run_benchmark(
+                expl_obj, args.n_val_imgs_per_cls, args.val_dir, setting_name, args.mode
             )
             with open(filepath, 'wb') as f:
                 pickle.dump((cls_corr_pred, cls_pixel_perc), f)
@@ -734,10 +711,10 @@ def parse_arguments(argv):
         default='sourceDir'
     )
     parser.add_argument(
-        '--save_dir', 
+        '--cache_dir', 
         type=str,
         help='directory where the results are saved', 
-        default='./sdc_data'
+        default='./cache_benchmarks'
     )
     parser.add_argument(
         '--model_name', 
@@ -750,6 +727,12 @@ def parse_arguments(argv):
         type=int,
         help="batch size used to calculate the activations from the PyTorch model",
         default=64
+    )
+    parser.add_argument(
+        '--val_dir', 
+        type=str,
+        help='directory where the test class images are saved (in folders named after the class)', 
+        default='val_imgs'
     )
     parser.add_argument(
         '--n_val_imgs_per_cls', 
